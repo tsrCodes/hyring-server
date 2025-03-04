@@ -23,24 +23,25 @@ export class DrawingGateway
   @WebSocketServer()
   server: Server;
 
-  private connectedUsers = new Map<string, string>();
   private canvas: DrawEvent[] = [];
 
   handleConnection(socket: Socket) {
     const name = socket.handshake.query.name?.toString() || '';
-    this.connectedUsers.set(socket.id, name);
+    const canvasForNewUser =
+      socket.handshake.query.canvasForNewUser == 'false' ? false : true;
     socket.broadcast.emit('notify', `User ${name} has Joined`);
-    socket.emit('canvas', this.canvas);
-    this.server.emit('count', this.connectedUsers.size);
+    if (canvasForNewUser) {
+      socket.emit('canvas', this.canvas);
+    }
+    this.server.emit('count', this.server.sockets.sockets.size);
   }
 
   handleDisconnect(socket: Socket) {
     const name = socket.handshake.query.name?.toString() || '';
-    this.connectedUsers.delete(socket.id);
 
     if (name) {
       this.server.emit('notify', `User ${name} has Disconnected`);
-      this.server.emit('count', this.connectedUsers.size);
+      this.server.emit('count', this.server.sockets.sockets.size);
     }
   }
 
@@ -51,7 +52,7 @@ export class DrawingGateway
 
   @SubscribeMessage('count')
   count(@ConnectedSocket() client: Socket) {
-    client.broadcast.emit('count', this.connectedUsers.size);
+    client.broadcast.emit('count', this.server.sockets.sockets.size);
   }
 
   @SubscribeMessage('clear')
